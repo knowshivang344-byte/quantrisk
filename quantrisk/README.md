@@ -9,6 +9,10 @@
 
 ---
 
+
+
+![QuantRisk Dashboard](quantrisk%20img.png)
+
 ## Overview
 
 QuantRisk is a browser-based quantitative risk management tool that simulates portfolio behavior under thousands of market scenarios. It is designed to replicate the core risk metrics used by institutional trading desks and risk management teams.
