@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QuantRisk — Portfolio Risk Analyzer</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/styles.css" />
+</head>
+<body>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">Running Monte Carlo simulations...</div>
+</div>
+
+<div class="container">
+  <header>
+    <div class="logo">
+      <span class="logo-name">QuantRisk</span>
+      <span class="logo-tag">Portfolio Risk Engine</span>
+    </div>
+    <div class="header-right">
+      <div class="live-badge">
+        <div class="live-dot"></div>
+        <span>Simulation Active</span>
+      </div>
+      <div class="timestamp" id="clock"></div>
+    </div>
+  </header>
+
+  <!-- Portfolio Configuration -->
+  <div class="input-section">
+    <div class="section-label">Portfolio Configuration</div>
+    <div id="tickerInputs" class="ticker-grid"></div>
+    <div class="controls">
+      <button class="btn btn-primary" onclick="runAnalysis()">&#9654; Run Risk Analysis</button>
+      <button class="btn btn-secondary" onclick="loadPreset('tech')">Tech Portfolio</button>
+      <button class="btn btn-secondary" onclick="loadPreset('balanced')">Balanced</button>
+      <button class="btn btn-secondary" onclick="loadPreset('defensive')">Defensive</button>
+      <div class="param-group">
+        Confidence:
+        <select id="confidence">
+          <option value="0.95">95%</option>
+          <option value="0.99" selected>99%</option>
+        </select>
+      </div>
+      <div class="param-group">
+        Horizon:
+        <select id="horizon">
+          <option value="1">1-Day</option>
+          <option value="10" selected>10-Day</option>
+          <option value="30">30-Day</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="kpi-grid" id="kpiGrid">
+    <div class="kpi-card danger">
+      <div class="kpi-label">Value at Risk (VaR)</div>
+      <div class="kpi-value" id="kpi-var">—</div>
+      <div class="kpi-sub" id="kpi-var-sub">Run analysis to compute</div>
+    </div>
+    <div class="kpi-card danger">
+      <div class="kpi-label">Expected Shortfall (CVaR)</div>
+      <div class="kpi-value" id="kpi-cvar">—</div>
+      <div class="kpi-sub" id="kpi-cvar-sub">Tail loss beyond VaR</div>
+    </div>
+    <div class="kpi-card warn">
+      <div class="kpi-label">Portfolio Volatility</div>
+      <div class="kpi-value" id="kpi-vol">—</div>
+      <div class="kpi-sub" id="kpi-vol-sub">Annualized std deviation</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Sharpe Ratio</div>
+      <div class="kpi-value" id="kpi-sharpe">—</div>
+      <div class="kpi-sub" id="kpi-sharpe-sub">Risk-adjusted return</div>
+    </div>
+    <div class="kpi-card info">
+      <div class="kpi-label">Max Drawdown</div>
+      <div class="kpi-value" id="kpi-drawdown">—</div>
+      <div class="kpi-sub" id="kpi-drawdown-sub">Peak-to-trough loss</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Portfolio Beta</div>
+      <div class="kpi-value" id="kpi-beta">—</div>
+      <div class="kpi-sub" id="kpi-beta-sub">Market sensitivity</div>
+    </div>
+  </div>
+
+  <!-- Charts Row 1 -->
+  <div class="chart-grid-3">
+    <div class="chart-card">
+      <div class="chart-title">P&amp;L Distribution — Monte Carlo (10,000 Simulations)</div>
+      <div class="chart-desc">Simulated portfolio return distribution with VaR and CVaR markers</div>
+      <div class="chart-wrap tall">
+        <canvas id="distChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Risk Score</div>
+      <div class="chart-desc">Composite portfolio risk rating</div>
+      <div class="chart-wrap tall gauge-container">
+        <canvas id="gaugeChart" width="200" height="200"></canvas>
+        <div class="gauge-label" id="gaugeValue">—</div>
+        <div class="gauge-sub" id="gaugeLabel">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Row 2 -->
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">Simulated Portfolio Paths</div>
+      <div class="chart-desc">100 Monte Carlo paths over the holding period</div>
+      <div class="chart-wrap">
+        <canvas id="pathChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Asset Allocation</div>
+      <div class="chart-desc">Portfolio weight distribution</div>
+      <div class="chart-wrap">
+        <canvas id="allocChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Holdings Table + Heatmap -->
+  <div class="chart-grid">
+    <div class="table-card">
+      <div class="chart-title">Holdings Risk Breakdown</div>
+      <div class="chart-desc">Per-asset contribution to portfolio risk</div>
+      <table id="holdingsTable">
+        <thead>
+          <tr>
+            <th>Ticker</th>
+            <th>Weight</th>
+            <th>Exp. Return</th>
+            <th>Volatility</th>
+            <th>Risk Contrib.</th>
+            <th>Signal</th>
+          </tr>
+        </thead>
+        <tbody id="holdingsBody">
+          <tr><td colspan="6" class="empty-state">Run analysis to populate</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Correlation Heatmap</div>
+      <div class="chart-desc">Asset return correlations</div>
+      <div id="correlationMap"></div>
+    </div>
+  </div>
+
+  <footer>
+    <span>QuantRisk v1.0 &mdash; Monte Carlo Risk Engine &middot; Built with Vanilla JS + Chart.js</span>
+    <span>&#9888; For educational and demonstration purposes only. Not financial advice.</span>
+  </footer>
+</div>
+
+<!-- JS Modules -->
+<script src="assets/js/data.js"></script>
+<script src="assets/js/math.js"></script>
+<script src="assets/js/simulation.js"></script>
+<script src="assets/js/charts.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/app.js"></script>
+
+</body>
+</html>
