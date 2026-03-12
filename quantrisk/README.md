@@ -109,7 +109,7 @@ quantrisk/
 ### Run Locally
 
 ```bash
-git clone https://github.com/yourusername/quantrisk.git
+git clone https://github.com/knowshivang344-byte/quantrisk.git
 cd quantrisk
 open index.html        # macOS
 # or
